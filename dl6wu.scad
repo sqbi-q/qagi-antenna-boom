@@ -1,7 +1,7 @@
 // dl6wu.scad - port of dl6wu.c for OpenSCAD
 
 // <SCAD_VERSION>-portof.<C_VERSION>
-DL6WU_VERSION = "0.0.1-portof.0.0.3";
+DL6WU_VERSION = "0.0.2-portof.0.0.3";
 
 // Returns wavelength (in mm) for frequency (in MHz).
 function frequencyToWavelength(freq) = 299793.0 / freq;
@@ -181,9 +181,9 @@ function calculateAntenna(
          [reflectorLength(parasitic_wavelengths), elementSpacing(0)],
          [drivenLength(driven_wavelengths), elementSpacing(1)]
         ],
-        [for (i = [0 : 1 : director_count])
-         let (director_i = i + 2)
-         [directorLengthFromInterpolate(i, factors), elementDistance(director_i)]
+        [for (i = [0 : director_count - 1])
+         let (element_i = i + 2)
+         [directorLengthFromInterpolate(i, factors), elementDistance(element_i)]
         ]
     ) * wavelength
 );
