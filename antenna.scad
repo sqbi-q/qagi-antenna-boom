@@ -1,7 +1,7 @@
 // Yagi antenna boom model made by sqbi-q.
 // Designed for flat element shape (3G-Aerial DL6WU calculator).
 
-MODEL_VERSION = "0.1.1-Test";
+MODEL_VERSION = "0.1.1";
 
 include <./BOSL2/std.scad> // from local dir
 //include <BOSL2/std.scad> // from library dir
@@ -20,7 +20,7 @@ $fn = 20;
 
 /// -------- Configuration ----------
 
-directorCount     = 2;
+directorCount     = 3;
 frequency         = 869.000; // MHz
 drivenDiameter    = 6;       // mm
 parasiticDiameter = 6;       // mm
@@ -79,57 +79,87 @@ module ellipseCut() {
 }
 
 // Main Part
-boomCutDiff()
-boomCuboid(0, 2, boomDimensions) {
-    position(FRONT) orient(FRONT)
-    boomPlugBlock(0.5);
-    
-    tag("remove") {
-        // hole before dipole
-        // TODO dynamic adjust
-        back(90)
-        position(FRONT)
-        cuboid([50 - 25, 10, 20]);
+module boomBase(element_count = 5) {
+    last_element_i = element_count - 1;
 
-        up(elemDiffCorrection)
-        position(FRONT+TOP)
-            boomText();
-
-        position(BACK) orient(FRONT)
-        boomPlugBlock(0.0);
+    boomCutDiff(boomDimensions)
+    boomCuboid(0, last_element_i, boomDimensions) {
+        position(FRONT) orient(FRONT)
+            boomPlugBlock(0.5);
         
-        // TODO dynamic cuts, adjust for different frequencies etc
-        back(43)
-        ellipseCut();
+        position(BACK) orient(BACK)
+            boomPlugBlock(0.5);
+
+        tag("remove") {
+            // hole before dipole
+            // TODO dynamic adjust
+            back(90)
+            position(FRONT)
+                cuboid([50 - 25, 10, 20]);
+
+            up(elemDiffCorrection)
+            position(FRONT+TOP)
+                boomText("QAGI 868", element_count);
+            
+            // TODO dynamic cuts, adjust for different frequencies etc
+            back(43)
+                ellipseCut();
+
+            for (i = [3 : last_element_i]) {
+                let (
+                    points = boomPartEndpoints(i, boomDimensions)
+                )
+                back(points[0])
+                ellipseCut();
+            }
+        }
     }
 }
 
-// Additional Parts
-for (i = [3 : directorCount + 1]) {
-    part_i = i - 2;
+boomBase(5);
 
-    right(60 * part_i)
-    fwd(80 * part_i)
-    boomCutDiff()
-    boomCuboid(i, i, boomDimensions) {
-        position(FRONT) orient(FRONT)
-        boomPlugBlock(0.5);
+// Additional Parts
+module boomPart(element_i, element_count = 1) {
+    boomCutDiff(boomDimensions) 
+    boomCuboid(element_i, element_i + element_count - 1, boomDimensions) {
+        position(BACK) orient(BACK)
+            boomPlugBlock(0.5);
 
         tag("remove") {
-            back(5)
-            up(elemDiffCorrection)
-            position(FRONT+TOP)
-            text3d(str("Director #", i - 1), 0.5, size=3,
-                anchor = TOP, font = "Osifont");
-
-            position(BACK) orient(FRONT)
-            boomPlugBlock(0.0);
+            position(FRONT) orient(BACK)
+                boomPlugBlock(0.0);
         }
 
-        // TODO dynamic cuts, adjust for different frequencies etc
         tag("remove")
-        ellipseCut();
+        for (i = [0 : element_count - 1]) {
+            let (
+                points = boomPartEndpoints(i, boomDimensions)
+            )
+
+            back(points[0])
+            {
+                back(5)
+                up(elemDiffCorrection)
+                position(FRONT+TOP)
+                // TODO show information about element length
+                text3d(str("Director #", element_i + i - 1), 0.5, size=3,
+                    anchor = TOP, font = "Osifont");
+               
+                // TODO dynamic cuts, adjust for different frequencies etc
+                ellipseCut();
+            }
+        }
     }
+}
+
+if (false) // comment for split parts
+{
+    right(60)
+    boomBase(3);
+
+    fwd(150)
+    right(120)
+    boomPart(3, 2);
 }
 
 /// ---------------------------------
@@ -238,13 +268,13 @@ module boomCuboid(start_i, end_i, dims) {
 }
 
 // TODO adjust for different sizes
-module boomText() {
+module boomText(title, base_element_count) {
     back(55)
-    text3d("QAGI 868", 0.5, size=5,
+    text3d(title, 0.5, size=5,
         anchor = TOP, font = "Osifont");
 
     back(51)
-    text3d("3-element", 0.5, size=3,
+    text3d(str(base_element_count, "-element"), 0.5, size=3,
         anchor = TOP, font = "Osifont");
 
     back(45)
@@ -252,15 +282,15 @@ module boomText() {
         anchor = TOP, font = "Overpass");
 }
 
-module boomCutDiff() {
+module boomCutDiff(boomDims) {
     tag_scope()
     diff() {
         children();
 
         tag("remove") {
-            up(boomDimensions("thickness") - boomDimensions("element_thickness"))
-            allElements(boomDimensions);
-            allHoles(boomDimensions);
+            up(boomDims("thickness") - boomDims("element_thickness"))
+            allElements(boomDims);
+            allHoles(boomDims);
         }
     }
 }
